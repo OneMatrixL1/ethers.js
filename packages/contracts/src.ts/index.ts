@@ -226,8 +226,8 @@ async function populateTransaction(contract: Contract, fragment: FunctionFragmen
 
     // The ABI coded transaction
     let data = contract.interface.encodeFunctionData(fragment, resolved.args);
-    if (contract._dataSuffix != undefined) {
-        data = data + contract._dataSuffix.slice(2); // remove 0x from suffixData
+    if (contract.getDataSuffix() != undefined) {
+        data = data + contract.getDataSuffix().slice(2); // remove 0x from suffixData
         contract.setDataSuffix(undefined);
     }
     const tx: PopulatedTransaction = {
@@ -653,7 +653,7 @@ export class BaseContract {
     readonly deployTransaction: TransactionResponse;
 
     // Data suffix send to transaction, deleted after a transaction is sent
-    _dataSuffix?: string;
+    private _dataSuffix?: string;
 
     _deployedPromise: Promise<Contract>;
 
@@ -1149,6 +1149,10 @@ export class BaseContract {
 
     setDataSuffix(suffix: BytesLike) {
         this._dataSuffix = hexlify(suffix);
+    }
+
+    getDataSuffux(): string {
+        return this._dataSuffix;
     }
 }
 
