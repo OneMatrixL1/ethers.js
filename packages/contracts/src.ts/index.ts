@@ -225,7 +225,11 @@ async function populateTransaction(contract: Contract, fragment: FunctionFragmen
     });
 
     // The ABI coded transaction
-    const data = contract.interface.encodeFunctionData(fragment, resolved.args);
+    let data = contract.interface.encodeFunctionData(fragment, resolved.args);
+    if (contract.getDataSuffix() != undefined) {
+        data = data + contract.getDataSuffix().slice(2); // remove 0x from suffixData
+        contract.setDataSuffix(undefined);
+    }
     const tx: PopulatedTransaction = {
       data: data,
       to: resolved.address
@@ -648,6 +652,9 @@ export class BaseContract {
     // This is only set if the contract was created with a call to deploy
     readonly deployTransaction: TransactionResponse;
 
+    // Data suffix send to transaction, deleted after a transaction is sent
+    private _dataSuffix?: string;
+
     _deployedPromise: Promise<Contract>;
 
     // A list of RunningEvents to track listeners for each event tag
@@ -656,7 +663,8 @@ export class BaseContract {
     // Wrapped functions to call emit and allow deregistration from the provider
     _wrappedEmits: { [ eventTag: string ]: (...args: Array<any>) => void };
 
-    constructor(addressOrName: string, contractInterface: ContractInterface, signerOrProvider?: Signer | Provider) {
+    constructor(addressOrName: string, contractInterface: ContractInterface, 
+            signerOrProvider?: Signer | Provider, suffix?: BytesLike) {
         // @TODO: Maybe still check the addressOrName looks like a valid address or name?
         //address = getAddress(address);
         defineReadOnly(this, "interface", getStatic<InterfaceFunc>(new.target, "getInterface")(contractInterface));
@@ -674,6 +682,10 @@ export class BaseContract {
             logger.throwArgumentError("invalid signer or provider", "signerOrProvider", signerOrProvider);
         }
 
+        if (suffix) {
+            this._dataSuffix = hexlify(suffix);
+        }
+        
         defineReadOnly(this, "callStatic", { });
         defineReadOnly(this, "estimateGas", { });
         defineReadOnly(this, "functions", { });
@@ -884,7 +896,7 @@ export class BaseContract {
             signerOrProvider = new VoidSigner(signerOrProvider, this.provider);
         }
 
-        const contract = new (<{ new(...args: any[]): Contract }>(this.constructor))(this.address, this.interface, signerOrProvider);
+        const contract = new (<{ new(...args: any[]): Contract }>(this.constructor))(this.address, this.interface, signerOrProvider, this._dataSuffix);
         if (this.deployTransaction) {
             defineReadOnly(contract, "deployTransaction", this.deployTransaction);
         }
@@ -894,7 +906,7 @@ export class BaseContract {
 
     // Re-attach to a different on-chain instance of this contract
     attach(addressOrName: string): Contract {
-        return new (<{ new(...args: any[]): Contract }>(this.constructor))(addressOrName, this.interface, this.signer || this.provider);
+        return new (<{ new(...args: any[]): Contract }>(this.constructor))(addressOrName, this.interface, this.signer || this.provider, this._dataSuffix);
     }
 
     static isIndexed(value: any): value is Indexed {
@@ -1135,6 +1147,13 @@ export class BaseContract {
         return this.off(eventName, listener);
     }
 
+    setDataSuffix(suffix: BytesLike) {
+        this._dataSuffix = hexlify(suffix);
+    }
+
+    getDataSuffux(): string {
+        return this._dataSuffix;
+    }
 }
 
 export class Contract extends BaseContract {
@@ -1148,7 +1167,7 @@ export class ContractFactory {
     readonly bytecode: string;
     readonly signer: Signer;
 
-    constructor(contractInterface: ContractInterface, bytecode: BytesLike | { object: string }, signer?: Signer) {
+    constructor(contractInterface: ContractInterface, bytecode: BytesLike | { object: string }, signer?: Signer, suffix?: string) {
 
         let bytecodeHex: string = null;
 
