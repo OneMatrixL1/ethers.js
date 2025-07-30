@@ -444,12 +444,15 @@ export class JsonRpcProvider extends BaseProvider {
                 return ["eth_getTransactionReceipt", [params.transactionHash]];
             case "call": {
                 const hexlifyTransaction = getStatic(this.constructor, "hexlifyTransaction");
+                if (!params.stateOverride) {
+                    return ["eth_call", [hexlifyTransaction(params.transaction, { from: true }), params.blockTag]];
+                }
                 return [
                     "eth_call",
                     [
                         hexlifyTransaction(params.transaction, { from: true }),
                         params.blockTag,
-                        params.stateOverride
+                        JsonRpcProvider.hexlifyStateOverride(params.stateOverride)
                     ]
                 ];
             }
@@ -596,6 +599,35 @@ export class JsonRpcProvider extends BaseProvider {
         if (transaction.accessList) {
             result["accessList"] = accessListify(transaction.accessList);
         }
+        return result;
+    }
+    static hexlifyStateOverride(state) {
+        let result = {};
+        for (let address of Object.keys(state)) {
+            result[address] = JsonRpcProvider.hexlifyOverrideAccount(state[address]);
+        }
+        return result;
+    }
+    static hexlifyOverrideAccount(account) {
+        let result = {};
+        ['nonce', 'balance'].forEach(key => {
+            if (account[key] === null) {
+                return;
+            }
+            result[key] = hexValue(account[key]);
+        });
+        ['code'].forEach(key => {
+            if (account[key] === null) {
+                return;
+            }
+            result[key] = hexlify(account[key]);
+        });
+        ['state', 'stateDiff'].forEach(key => {
+            if (account[key] === null) {
+                return;
+            }
+            result[key] = account[key];
+        });
         return result;
     }
 }

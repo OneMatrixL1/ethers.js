@@ -26,11 +26,11 @@ export class Formatter {
         const type = this.type.bind(this);
         const mapHashHash = Formatter.mapOf(hash, hash);
         const overrideAccount = {
-            nonce: Formatter.allowNull(number),
-            code: Formatter.allowNull(hex),
+            nonce: Formatter.allowNull(number, null),
+            code: Formatter.allowNull(hex, null),
             balance: Formatter.allowNull(value => BigNumber.from(value).toHexString(), null),
-            state: Formatter.allowNull(mapHashHash),
-            stateDiff: Formatter.allowNull(mapHashHash),
+            state: Formatter.allowNull(mapHashHash, null),
+            stateDiff: Formatter.allowNull(mapHashHash, null),
         };
         const strictData = (v) => { return this.data(v, true); };
         formats.transaction = {

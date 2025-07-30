@@ -6,14 +6,20 @@ import { Network, Networkish } from "@ethersproject/networks";
 import { Deferrable } from "@ethersproject/properties";
 import { Transaction } from "@ethersproject/transactions";
 import { Formatter } from "./formatter";
-export declare type OverrideAccount = {
+export declare type AccountOverride = {
     nonce?: string;
     code?: BytesLike;
     balance?: BigNumberish;
-    state?: Map<string, string>;
-    stateDiff?: Map<string, string>;
+    state?: {
+        [key: string]: string;
+    };
+    stateDiff?: {
+        [key: string]: string;
+    };
 };
-export declare type StateOverride = Map<string, OverrideAccount>;
+export declare type StateOverride = {
+    [account: string]: AccountOverride;
+};
 export declare class Event {
     readonly listener: Listener;
     readonly once: boolean;
@@ -129,7 +135,7 @@ export declare class BaseProvider extends Provider implements EnsProvider {
     _getFilter(filter: Filter | FilterByBlockHash | Promise<Filter | FilterByBlockHash>): Promise<Filter | FilterByBlockHash>;
     call(transaction: Deferrable<TransactionRequest>, blockTag?: BlockTag | Promise<BlockTag>): Promise<string>;
     estimateGas(transaction: Deferrable<TransactionRequest>): Promise<BigNumber>;
-    setStateOverride(value: StateOverride): void;
+    setStateOverride(value?: StateOverride): void;
     getStateOverride(): StateOverride;
     _getAddress(addressOrName: string | Promise<string>): Promise<string>;
     _getBlock(blockHashOrBlockTag: BlockTag | string | Promise<BlockTag | string>, includeTransactions?: boolean): Promise<Block | BlockWithTransactions>;

@@ -18161,11 +18161,11 @@ class Formatter {
         const type = this.type.bind(this);
         const mapHashHash = Formatter.mapOf(hash, hash);
         const overrideAccount = {
-            nonce: Formatter.allowNull(number),
-            code: Formatter.allowNull(hex),
-            balance: Formatter.allowNull(bigNumber),
-            state: Formatter.allowNull(mapHashHash),
-            stateDiff: Formatter.allowNull(mapHashHash),
+            nonce: Formatter.allowNull(number, null),
+            code: Formatter.allowNull(hex, null),
+            balance: Formatter.allowNull(value => BigNumber.from(value).toHexString(), null),
+            state: Formatter.allowNull(mapHashHash, null),
+            stateDiff: Formatter.allowNull(mapHashHash, null),
         };
         const strictData = (v) => { return this.data(v, true); };
         formats.transaction = {
@@ -19854,6 +19854,8 @@ class BaseProvider extends Provider {
         });
     }
     _getStateOverride(state) {
+        if (state == null)
+            return {};
         return this.formatter.stateOverride(state);
     }
     _getFilter(filter) {
@@ -19907,7 +19909,8 @@ class BaseProvider extends Provider {
         return __awaiter$9(this, void 0, void 0, function* () {
             yield this.getNetwork();
             const params = yield resolveProperties({
-                transaction: this._getTransactionRequest(transaction)
+                transaction: this._getTransactionRequest(transaction),
+                stateOverride: this._getStateOverride(this._stateOverride)
             });
             const result = yield this.perform("estimateGas", params);
             try {
@@ -19921,8 +19924,12 @@ class BaseProvider extends Provider {
             }
         });
     }
-    setStateOverride(value) {
-        this._stateOverride = value;
+    setStateOverride(value = null) {
+        if (value === null) {
+            this._stateOverride = null;
+            return;
+        }
+        this._stateOverride = this.formatter.stateOverride(value);
     }
     getStateOverride() {
         return this._stateOverride;
@@ -20788,12 +20795,15 @@ class JsonRpcProvider extends BaseProvider {
                 return ["eth_getTransactionReceipt", [params.transactionHash]];
             case "call": {
                 const hexlifyTransaction = getStatic(this.constructor, "hexlifyTransaction");
+                if (!params.stateOverride) {
+                    return ["eth_call", [hexlifyTransaction(params.transaction, { from: true }), params.blockTag]];
+                }
                 return [
                     "eth_call",
                     [
                         hexlifyTransaction(params.transaction, { from: true }),
                         params.blockTag,
-                        params.stateOverride
+                        JsonRpcProvider.hexlifyStateOverride(params.stateOverride)
                     ]
                 ];
             }
@@ -20940,6 +20950,35 @@ class JsonRpcProvider extends BaseProvider {
         if (transaction.accessList) {
             result["accessList"] = accessListify(transaction.accessList);
         }
+        return result;
+    }
+    static hexlifyStateOverride(state) {
+        let result = {};
+        for (let address of Object.keys(state)) {
+            result[address] = JsonRpcProvider.hexlifyOverrideAccount(state[address]);
+        }
+        return result;
+    }
+    static hexlifyOverrideAccount(account) {
+        let result = {};
+        ['nonce', 'balance'].forEach(key => {
+            if (account[key] === null) {
+                return;
+            }
+            result[key] = hexValue(account[key]);
+        });
+        ['code'].forEach(key => {
+            if (account[key] === null) {
+                return;
+            }
+            result[key] = hexlify(account[key]);
+        });
+        ['state', 'stateDiff'].forEach(key => {
+            if (account[key] === null) {
+                return;
+            }
+            result[key] = account[key];
+        });
         return result;
     }
 }

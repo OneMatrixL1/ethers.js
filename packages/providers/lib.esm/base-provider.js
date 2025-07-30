@@ -1245,7 +1245,8 @@ export class BaseProvider extends Provider {
         });
     }
     _getStateOverride(state) {
-        if (state == null) return {}
+        if (state == null)
+            return {};
         return this.formatter.stateOverride(state);
     }
     _getFilter(filter) {
@@ -1314,8 +1315,12 @@ export class BaseProvider extends Provider {
             }
         });
     }
-    setStateOverride(value) {
-        this._stateOverride = value;
+    setStateOverride(value = null) {
+        if (value === null) {
+            this._stateOverride = null;
+            return;
+        }
+        this._stateOverride = this.formatter.stateOverride(value);
     }
     getStateOverride() {
         return this._stateOverride;

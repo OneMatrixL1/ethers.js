@@ -20302,11 +20302,11 @@
 	        var type = this.type.bind(this);
 	        var mapHashHash = Formatter.mapOf(hash, hash);
 	        var overrideAccount = {
-	            nonce: Formatter.allowNull(number),
-	            code: Formatter.allowNull(hex),
-	            balance: Formatter.allowNull(bigNumber),
-	            state: Formatter.allowNull(mapHashHash),
-	            stateDiff: Formatter.allowNull(mapHashHash),
+	            nonce: Formatter.allowNull(number, null),
+	            code: Formatter.allowNull(hex, null),
+	            balance: Formatter.allowNull(function (value) { return lib$2.BigNumber.from(value).toHexString(); }, null),
+	            state: Formatter.allowNull(mapHashHash, null),
+	            stateDiff: Formatter.allowNull(mapHashHash, null),
 	        };
 	        var strictData = function (v) { return _this.data(v, true); };
 	        formats.transaction = {
@@ -22358,6 +22358,8 @@
 	        });
 	    };
 	    BaseProvider.prototype._getStateOverride = function (state) {
+	        if (state == null)
+	            return {};
 	        return this.formatter.stateOverride(state);
 	    };
 	    BaseProvider.prototype._getFilter = function (filter) {
@@ -22440,7 +22442,8 @@
 	                    case 1:
 	                        _a.sent();
 	                        return [4 /*yield*/, (0, lib$3.resolveProperties)({
-	                                transaction: this._getTransactionRequest(transaction)
+	                                transaction: this._getTransactionRequest(transaction),
+	                                stateOverride: this._getStateOverride(this._stateOverride)
 	                            })];
 	                    case 2:
 	                        params = _a.sent();
@@ -22464,7 +22467,12 @@
 	        });
 	    };
 	    BaseProvider.prototype.setStateOverride = function (value) {
-	        this._stateOverride = value;
+	        if (value === void 0) { value = null; }
+	        if (value === null) {
+	            this._stateOverride = null;
+	            return;
+	        }
+	        this._stateOverride = this.formatter.stateOverride(value);
 	    };
 	    BaseProvider.prototype.getStateOverride = function () {
 	        return this._stateOverride;
@@ -23665,12 +23673,15 @@
 	                return ["eth_getTransactionReceipt", [params.transactionHash]];
 	            case "call": {
 	                var hexlifyTransaction = (0, lib$3.getStatic)(this.constructor, "hexlifyTransaction");
+	                if (!params.stateOverride) {
+	                    return ["eth_call", [hexlifyTransaction(params.transaction, { from: true }), params.blockTag]];
+	                }
 	                return [
 	                    "eth_call",
 	                    [
 	                        hexlifyTransaction(params.transaction, { from: true }),
 	                        params.blockTag,
-	                        params.stateOverride
+	                        JsonRpcProvider.hexlifyStateOverride(params.stateOverride)
 	                    ]
 	                ];
 	            }
@@ -23824,6 +23835,36 @@
 	        if (transaction.accessList) {
 	            result["accessList"] = (0, lib$e.accessListify)(transaction.accessList);
 	        }
+	        return result;
+	    };
+	    JsonRpcProvider.hexlifyStateOverride = function (state) {
+	        var result = {};
+	        for (var _i = 0, _a = Object.keys(state); _i < _a.length; _i++) {
+	            var address = _a[_i];
+	            result[address] = JsonRpcProvider.hexlifyOverrideAccount(state[address]);
+	        }
+	        return result;
+	    };
+	    JsonRpcProvider.hexlifyOverrideAccount = function (account) {
+	        var result = {};
+	        ['nonce', 'balance'].forEach(function (key) {
+	            if (account[key] === null) {
+	                return;
+	            }
+	            result[key] = (0, lib$1.hexValue)(account[key]);
+	        });
+	        ['code'].forEach(function (key) {
+	            if (account[key] === null) {
+	                return;
+	            }
+	            result[key] = (0, lib$1.hexlify)(account[key]);
+	        });
+	        ['state', 'stateDiff'].forEach(function (key) {
+	            if (account[key] === null) {
+	                return;
+	            }
+	            result[key] = account[key];
+	        });
 	        return result;
 	    };
 	    return JsonRpcProvider;
