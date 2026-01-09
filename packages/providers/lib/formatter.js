@@ -18,6 +18,7 @@ var Formatter = /** @class */ (function () {
         var _this = this;
         var formats = ({});
         var address = this.address.bind(this);
+        var filterAddress = this.filterAddress.bind(this);
         var bigNumber = this.bigNumber.bind(this);
         var blockTag = this.blockTag.bind(this);
         var data = this.data.bind(this);
@@ -25,6 +26,14 @@ var Formatter = /** @class */ (function () {
         var hex = this.hex.bind(this);
         var number = this.number.bind(this);
         var type = this.type.bind(this);
+        var mapHashHash = Formatter.mapOf(hash, hash);
+        var overrideAccount = {
+            nonce: Formatter.allowNull(number, null),
+            code: Formatter.allowNull(hex, null),
+            balance: Formatter.allowNull(function (value) { return bignumber_1.BigNumber.from(value).toHexString(); }, null),
+            state: Formatter.allowNull(mapHashHash, null),
+            stateDiff: Formatter.allowNull(mapHashHash, null),
+        };
         var strictData = function (v) { return _this.data(v, true); };
         formats.transaction = {
             hash: hash,
@@ -64,6 +73,7 @@ var Formatter = /** @class */ (function () {
             type: Formatter.allowNull(number),
             accessList: Formatter.allowNull(this.accessList.bind(this), null),
         };
+        formats.stateOverride = Formatter.mapOf(address, overrideAccount);
         formats.receiptLog = {
             transactionIndex: number,
             blockNumber: number,
@@ -113,7 +123,7 @@ var Formatter = /** @class */ (function () {
             fromBlock: Formatter.allowNull(blockTag, undefined),
             toBlock: Formatter.allowNull(blockTag, undefined),
             blockHash: Formatter.allowNull(hash, undefined),
-            address: Formatter.allowNull(address, undefined),
+            address: Formatter.allowNull(filterAddress, undefined),
             topics: Formatter.allowNull(this.topics.bind(this), undefined),
         };
         formats.filterLog = {
@@ -187,6 +197,12 @@ var Formatter = /** @class */ (function () {
     // Requires an address
     // Strict! Used on input.
     Formatter.prototype.address = function (value) {
+        return (0, address_1.getAddress)(value);
+    };
+    Formatter.prototype.filterAddress = function (value) {
+        if (Array.isArray(value)) {
+            return value.map(address_1.getAddress);
+        }
         return (0, address_1.getAddress)(value);
     };
     Formatter.prototype.callAddress = function (value) {
@@ -265,6 +281,9 @@ var Formatter = /** @class */ (function () {
     // Strict! Used on input.
     Formatter.prototype.transactionRequest = function (value) {
         return Formatter.check(this.formats.transactionRequest, value);
+    };
+    Formatter.prototype.stateOverride = function (value) {
+        return this.formats.stateOverride(value);
     };
     Formatter.prototype.transactionResponse = function (transaction) {
         // Rename gas to gasLimit
@@ -420,6 +439,34 @@ var Formatter = /** @class */ (function () {
             });
             return result;
         });
+    };
+    Formatter.mapOf = function (formatKey, formatValue) {
+        return function (map) {
+            if (typeof (map) !== 'object' || map === null) {
+                throw new Error('expect an object');
+            }
+            var result = {};
+            for (var _i = 0, _a = Object.keys(map); _i < _a.length; _i++) {
+                var key = _a[_i];
+                var validKey = formatKey(key);
+                if (validKey === null) {
+                    return null;
+                }
+                var validValue = Formatter.format(map[key], formatValue);
+                if (validValue === null) {
+                    return null;
+                }
+                result[validKey] = validValue;
+            }
+            return result;
+        };
+    };
+    Formatter.format = function (value, format) {
+        switch (typeof (format)) {
+            case 'function': return format(value);
+            case 'object': return Formatter.check(format, value);
+            default: throw new Error('expect FormatFunc or FormatFuncs');
+        }
     };
     return Formatter;
 }());

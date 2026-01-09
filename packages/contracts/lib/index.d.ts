@@ -97,6 +97,7 @@ export declare class BaseContract {
     };
     readonly resolvedAddress: Promise<string>;
     readonly deployTransaction: TransactionResponse;
+    private _dataSuffix?;
     _deployedPromise: Promise<Contract>;
     _runningEvents: {
         [eventTag: string]: RunningEvent;
@@ -104,7 +105,7 @@ export declare class BaseContract {
     _wrappedEmits: {
         [eventTag: string]: (...args: Array<any>) => void;
     };
-    constructor(addressOrName: string, contractInterface: ContractInterface, signerOrProvider?: Signer | Provider);
+    constructor(addressOrName: string, contractInterface: ContractInterface, signerOrProvider?: Signer | Provider, suffix?: BytesLike);
     static getContractAddress(transaction: {
         from: string;
         nonce: BigNumberish;
@@ -130,6 +131,8 @@ export declare class BaseContract {
     removeAllListeners(eventName?: EventFilter | string): this;
     off(eventName: EventFilter | string, listener: Listener): this;
     removeListener(eventName: EventFilter | string, listener: Listener): this;
+    setDataSuffix(suffix: BytesLike): void;
+    getDataSuffux(): string;
 }
 export declare class Contract extends BaseContract {
     readonly [key: string]: ContractFunction | any;
@@ -140,7 +143,7 @@ export declare class ContractFactory {
     readonly signer: Signer;
     constructor(contractInterface: ContractInterface, bytecode: BytesLike | {
         object: string;
-    }, signer?: Signer);
+    }, signer?: Signer, suffix?: string);
     getDeployTransaction(...args: Array<any>): TransactionRequest;
     deploy(...args: Array<any>): Promise<Contract>;
     attach(address: string): Contract;

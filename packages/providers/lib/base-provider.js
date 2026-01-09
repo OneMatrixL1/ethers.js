@@ -751,6 +751,7 @@ var BaseProvider = /** @class */ (function (_super) {
         // Events being listened to
         _this._events = [];
         _this._emitted = { block: -2 };
+        _this._stateOverride = null;
         _this.disableCcipRead = false;
         _this.formatter = _newTarget.getFormatter();
         // If network is any, this Provider allows the underlying
@@ -1781,6 +1782,11 @@ var BaseProvider = /** @class */ (function (_super) {
             });
         });
     };
+    BaseProvider.prototype._getStateOverride = function (state) {
+        if (state == null)
+            return {};
+        return this.formatter.stateOverride(state);
+    };
     BaseProvider.prototype._getFilter = function (filter) {
         return __awaiter(this, void 0, void 0, function () {
             var result, _a, _b;
@@ -1792,7 +1798,12 @@ var BaseProvider = /** @class */ (function (_super) {
                         filter = _c.sent();
                         result = {};
                         if (filter.address != null) {
-                            result.address = this._getAddress(filter.address);
+                            if (Array.isArray(filter.address)) {
+                                result.address = Promise.all(filter.address.map(this._getAddress.bind(this)));
+                            }
+                            else {
+                                result.address = this._getAddress(filter.address);
+                            }
                         }
                         ["blockHash", "topics"].forEach(function (key) {
                             if (filter[key] == null) {
@@ -1815,7 +1826,7 @@ var BaseProvider = /** @class */ (function (_super) {
     };
     BaseProvider.prototype._call = function (transaction, blockTag, attempt) {
         return __awaiter(this, void 0, void 0, function () {
-            var txSender, result, data, sender, urls, urlsOffset, urlsLength, urlsData, u, url, calldata, callbackSelector, extraData, ccipResult, tx, error_8;
+            var txSender, stateOverride, result, data, sender, urls, urlsOffset, urlsLength, urlsData, u, url, calldata, callbackSelector, extraData, ccipResult, tx, error_8;
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
@@ -1826,7 +1837,8 @@ var BaseProvider = /** @class */ (function (_super) {
                             });
                         }
                         txSender = transaction.to;
-                        return [4 /*yield*/, this.perform("call", { transaction: transaction, blockTag: blockTag })];
+                        stateOverride = this._getStateOverride(this._stateOverride);
+                        return [4 /*yield*/, this.perform("call", { transaction: transaction, blockTag: blockTag, stateOverride: stateOverride })];
                     case 1:
                         result = _a.sent();
                         if (!(attempt >= 0 && blockTag === "latest" && txSender != null && result.substring(0, 10) === "0x556f1830" && ((0, bytes_1.hexDataLength)(result) % 32 === 4))) return [3 /*break*/, 5];
@@ -1939,6 +1951,7 @@ var BaseProvider = /** @class */ (function (_super) {
                     case 1:
                         _a.sent();
                         return [4 /*yield*/, (0, properties_1.resolveProperties)({
+                                stateOverride: this._getStateOverride(this._stateOverride),
                                 transaction: this._getTransactionRequest(transaction)
                             })];
                     case 2:
@@ -1961,6 +1974,17 @@ var BaseProvider = /** @class */ (function (_super) {
                 }
             });
         });
+    };
+    BaseProvider.prototype.setStateOverride = function (value) {
+        if (value === void 0) { value = null; }
+        if (value === null) {
+            this._stateOverride = null;
+            return;
+        }
+        this._stateOverride = this.formatter.stateOverride(value);
+    };
+    BaseProvider.prototype.getStateOverride = function () {
+        return this._stateOverride;
     };
     BaseProvider.prototype._getAddress = function (addressOrName) {
         return __awaiter(this, void 0, void 0, function () {

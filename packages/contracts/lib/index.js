@@ -199,6 +199,10 @@ function populateTransaction(contract, fragment, args) {
                 case 1:
                     resolved = _a.sent();
                     data = contract.interface.encodeFunctionData(fragment, resolved.args);
+                    if (contract.getDataSuffix() != undefined) {
+                        data = data + contract.getDataSuffix().slice(2); // remove 0x from suffixData
+                        contract.setDataSuffix(undefined);
+                    }
                     tx = {
                         data: data,
                         to: resolved.address
@@ -608,7 +612,7 @@ var WildcardRunningEvent = /** @class */ (function (_super) {
     return WildcardRunningEvent;
 }(RunningEvent));
 var BaseContract = /** @class */ (function () {
-    function BaseContract(addressOrName, contractInterface, signerOrProvider) {
+    function BaseContract(addressOrName, contractInterface, signerOrProvider, suffix) {
         var _newTarget = this.constructor;
         var _this = this;
         // @TODO: Maybe still check the addressOrName looks like a valid address or name?
@@ -628,6 +632,9 @@ var BaseContract = /** @class */ (function () {
         }
         else {
             logger.throwArgumentError("invalid signer or provider", "signerOrProvider", signerOrProvider);
+        }
+        if (suffix) {
+            this._dataSuffix = (0, bytes_1.hexlify)(suffix);
         }
         (0, properties_1.defineReadOnly)(this, "callStatic", {});
         (0, properties_1.defineReadOnly)(this, "estimateGas", {});
@@ -819,7 +826,7 @@ var BaseContract = /** @class */ (function () {
         if (typeof (signerOrProvider) === "string") {
             signerOrProvider = new abstract_signer_1.VoidSigner(signerOrProvider, this.provider);
         }
-        var contract = new (this.constructor)(this.address, this.interface, signerOrProvider);
+        var contract = new (this.constructor)(this.address, this.interface, signerOrProvider, this._dataSuffix);
         if (this.deployTransaction) {
             (0, properties_1.defineReadOnly)(contract, "deployTransaction", this.deployTransaction);
         }
@@ -827,7 +834,7 @@ var BaseContract = /** @class */ (function () {
     };
     // Re-attach to a different on-chain instance of this contract
     BaseContract.prototype.attach = function (addressOrName) {
-        return new (this.constructor)(addressOrName, this.interface, this.signer || this.provider);
+        return new (this.constructor)(addressOrName, this.interface, this.signer || this.provider, this._dataSuffix);
     };
     BaseContract.isIndexed = function (value) {
         return abi_1.Indexed.isIndexed(value);
@@ -1044,6 +1051,12 @@ var BaseContract = /** @class */ (function () {
     BaseContract.prototype.removeListener = function (eventName, listener) {
         return this.off(eventName, listener);
     };
+    BaseContract.prototype.setDataSuffix = function (suffix) {
+        this._dataSuffix = (0, bytes_1.hexlify)(suffix);
+    };
+    BaseContract.prototype.getDataSuffux = function () {
+        return this._dataSuffix;
+    };
     return BaseContract;
 }());
 exports.BaseContract = BaseContract;
@@ -1056,7 +1069,7 @@ var Contract = /** @class */ (function (_super) {
 }(BaseContract));
 exports.Contract = Contract;
 var ContractFactory = /** @class */ (function () {
-    function ContractFactory(contractInterface, bytecode, signer) {
+    function ContractFactory(contractInterface, bytecode, signer, suffix) {
         var _newTarget = this.constructor;
         var bytecodeHex = null;
         if (typeof (bytecode) === "string") {
